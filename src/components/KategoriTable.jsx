@@ -1,5 +1,5 @@
 import Image from "next/image";
-import noIcon from "@/assett/noIcon.jpg";
+import noIcon from "@/assett/noIcon.png";
 import { useState, useEffect, useRef } from "react";
 import axios from "axios";
 
