@@ -4,9 +4,11 @@ import { v4 as uuidv4 } from 'uuid';
 
 export async function PUT(request, { params }) {
   try {
+    // First await any asynchronous operations if needed
+    // Then access params (no need to await params in this case)
     const { id } = params;
     
-    // Get the file from FormData
+    // Rest of your existing code...
     const formData = await request.formData();
     const adminImageFile = formData.get('image');
 

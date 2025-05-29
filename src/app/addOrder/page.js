@@ -60,8 +60,9 @@ function generateDummyOrder(index) {
     order_date: orderDate,
     status: [
       { title: "Pesanan Diterima", date: "14 February", status: true },
-      { title: "Pesanan Diproses", date: "", status: false },
+      { title: "Pesanan Dikonfirmasi", date: "", status: false },
       { title: "Pesanan Dikirim", date: "", status: false },
+      { title: "Pesanan Sampai Tujuan", date: "", status: false },
     ],
     subtotal,
     total,
