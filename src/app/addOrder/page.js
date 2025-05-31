@@ -16,12 +16,14 @@ function generateDummyOrder(index) {
       id: 1,
       title: "NOVAMOS Parfum Kucing dan Anjing",
       price: 19000,
+      weight: 1000,
       qty: Math.floor(Math.random() * 3) + 1,
     },
     {
       id: 2,
       title: "NOVAMOS Paket 2in1 Salep Scabies",
       price: 58000,
+      weight: 1000,
       qty: Math.floor(Math.random() * 2) + 1,
     },
   ];

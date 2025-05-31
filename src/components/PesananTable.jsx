@@ -22,6 +22,9 @@ const PesananTable = () => {
   const [editedOrder, setEditedOrder] = useState(null);
   const [statusFilter, setStatusFilter] = useState("");
   const [selectedIds, setSelectedIds] = useState([]);
+  const [products, setProducts] = useState([]);
+  const [showProductModal, setShowProductModal] = useState(false);
+  const [selectedProducts, setSelectedProducts] = useState([]);
 
   const toggleSelectAll = () => {
     if (selectedIds.length === filteredOrders.length) {
@@ -100,6 +103,82 @@ const PesananTable = () => {
   useEffect(() => {
     fetchOrders();
   }, []);
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const response = await axios.get("/api/v1/produk");
+        setProducts(response.data);
+      } catch (err) {
+        console.error("Error fetching products:", err);
+      }
+    };
+    fetchProducts();
+  }, []);
+
+  const handleAddProduct = (product) => {
+    setEditedOrder((prev) => ({
+      ...prev,
+      items: [
+        ...(prev.items || []),
+        {
+          id: product.id,
+          title: product.name,
+          price: product.price,
+          weight: product.berat,
+          qty: 1,
+        },
+      ],
+    }));
+    setShowProductModal(false);
+    recalculateTotals();
+  };
+
+  // Add this function to handle removing a product from the order
+  const handleRemoveProduct = (index) => {
+    setEditedOrder((prev) => {
+      const newItems = [...prev.items];
+      newItems.splice(index, 1);
+      return {
+        ...prev,
+        items: newItems,
+      };
+    });
+    recalculateTotals();
+  };
+
+  // Add this function to handle quantity changes
+  const handleQuantityChange = (index, value) => {
+    const qty = parseInt(value) || 0;
+    if (qty < 1) return;
+
+    setEditedOrder((prev) => {
+      const newItems = [...prev.items];
+      newItems[index] = {
+        ...newItems[index],
+        qty: qty,
+      };
+      return {
+        ...prev,
+        items: newItems,
+      };
+    });
+    recalculateTotals();
+  };
+
+  // Add this function to recalculate subtotal and total
+  const recalculateTotals = () => {
+    setEditedOrder((prev) => {
+      const subtotal =
+        prev.items?.reduce((sum, item) => sum + item.price * item.qty, 0) || 0;
+      const shipping = prev.courier?.price || 0;
+      return {
+        ...prev,
+        subtotal: subtotal,
+        total: subtotal + shipping,
+      };
+    });
+  };
 
   const fetchOrders = async () => {
     try {
@@ -741,9 +820,17 @@ const PesananTable = () => {
               </div>
 
               <div className="mb-6">
-                <h3 className="font-semibold text-gray-700 mb-2">
-                  Daftar Produk
-                </h3>
+                <div className="flex justify-between items-center mb-2">
+                  <h3 className="font-semibold text-gray-700">Daftar Produk</h3>
+                  {editMode && (
+                    <button
+                      onClick={() => setShowProductModal(true)}
+                      className="px-3 py-1 bg-green-100 text-green-800 rounded hover:bg-green-200 text-sm"
+                    >
+                      Tambah
+                    </button>
+                  )}
+                </div>
                 <div className="border rounded-lg overflow-hidden">
                   <table className="min-w-full">
                     <thead className="bg-gray-100">
@@ -752,13 +839,33 @@ const PesananTable = () => {
                         <th className="py-2 px-4 text-left">Qty</th>
                         <th className="py-2 px-4 text-left">Harga</th>
                         <th className="py-2 px-4 text-left">Subtotal</th>
+                        {editMode && (
+                          <th className="py-2 px-4 text-left">Aksi</th>
+                        )}
                       </tr>
                     </thead>
                     <tbody>
-                      {selectedOrder.items?.map((item, index) => (
+                      {(editMode
+                        ? editedOrder.items
+                        : selectedOrder.items
+                      )?.map((item, index) => (
                         <tr key={index} className="border-t">
                           <td className="py-2 px-4">{item.title}</td>
-                          <td className="py-2 px-4">{item.qty}</td>
+                          <td className="py-2 px-4">
+                            {editMode ? (
+                              <input
+                                type="number"
+                                min="1"
+                                value={item.qty}
+                                onChange={(e) =>
+                                  handleQuantityChange(index, e.target.value)
+                                }
+                                className="border rounded px-2 py-1 w-16"
+                              />
+                            ) : (
+                              item.qty
+                            )}
+                          </td>
                           <td className="py-2 px-4">
                             Rp {item.price?.toLocaleString("id-ID")}
                           </td>
@@ -766,6 +873,16 @@ const PesananTable = () => {
                             Rp{" "}
                             {(item.qty * item.price)?.toLocaleString("id-ID")}
                           </td>
+                          {editMode && (
+                            <td className="py-2 px-4">
+                              <button
+                                onClick={() => handleRemoveProduct(index)}
+                                className="text-red-500 hover:text-red-700"
+                              >
+                                Hapus
+                              </button>
+                            </td>
+                          )}
                         </tr>
                       ))}
                     </tbody>
@@ -913,6 +1030,45 @@ const PesananTable = () => {
               >
                 Hapus
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showProductModal && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold">Pilih Produk</h2>
+                <button
+                  onClick={() => setShowProductModal(false)}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  &times;
+                </button>
+              </div>
+              <div className="space-y-4">
+                {products.map((product) => (
+                  <div
+                    key={product.id}
+                    className="flex justify-between items-center p-3 border rounded"
+                  >
+                    <div>
+                      <h3 className="font-medium">{product.name}</h3>
+                      <p className="text-gray-600">
+                        Rp {product.price?.toLocaleString("id-ID")}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => handleAddProduct(product)}
+                      className="px-3 py-1 bg-blue-100 text-blue-800 rounded hover:bg-blue-200"
+                    >
+                      Tambah
+                    </button>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
