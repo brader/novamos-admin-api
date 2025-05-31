@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import axios from 'axios';
 
 export default function LoginPage() {
   const [username, setUsername] = useState('');
@@ -12,19 +13,27 @@ export default function LoginPage() {
   const handleLogin = async (e) => {
     e.preventDefault();
 
-    const res = await fetch('/api/v1/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password })
-    });
+    try {
+      const res = await axios.post('/api/v1/login', {
+        username,
+        password,
+      });
 
-    const data = await res.json();
+      const data = res.data;
 
-    if (data.success) {
-      localStorage.setItem('token', data.token);
-      router.push('/');
-    } else {
-      setError(data.message || 'Login gagal');
+      if (data.success) {
+        // ✅ Simpan ke localStorage
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('username', data.username);
+        localStorage.setItem('image', data.image || '');
+
+        router.push('/');
+      } else {
+        setError(data.message || 'Login gagal');
+      }
+    } catch (err) {
+      console.error('Login error:', err);
+      setError(err.response?.data?.message || 'Terjadi kesalahan saat login');
     }
   };
 

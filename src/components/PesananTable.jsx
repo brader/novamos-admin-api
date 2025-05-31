@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 import { CSVLink } from "react-csv";
 import DatePicker from "react-datepicker";
@@ -20,29 +20,26 @@ const PesananTable = () => {
   const [orderToDelete, setOrderToDelete] = useState(null);
   const [editMode, setEditMode] = useState(false);
   const [editedOrder, setEditedOrder] = useState(null);
+  const [statusFilter, setStatusFilter] = useState("");
+  const [selectedIds, setSelectedIds] = useState([]);
 
-  useEffect(() => {
-    fetchOrders();
-  }, []);
-
-  useEffect(() => {
-    filterOrders();
-  }, [orders, searchTerm, startDate, endDate]);
-
-  const fetchOrders = async () => {
-    try {
-      const response = await axios.get("/api/v1/pesanan");
-      setOrders(response.data);
-      setFilteredOrders(response.data);
-    } catch (err) {
-      console.error("Error fetching orders:", err);
-      setError("Failed to load orders");
-    } finally {
-      setLoading(false);
+  const toggleSelectAll = () => {
+    if (selectedIds.length === filteredOrders.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(filteredOrders.map((order) => order.id));
     }
   };
 
-  const filterOrders = () => {
+  const toggleSelectOne = (id) => {
+    if (selectedIds.includes(id)) {
+      setSelectedIds(selectedIds.filter((selectedId) => selectedId !== id));
+    } else {
+      setSelectedIds([...selectedIds, id]);
+    }
+  };
+
+  const filterOrders = useCallback(() => {
     let result = [...orders];
 
     // Filter by search term
@@ -52,11 +49,21 @@ const PesananTable = () => {
         (order) =>
           order.id.toString().includes(term) ||
           (order.user?.name && order.user.name.toLowerCase().includes(term)) ||
-          (order.user?.email && order.user.email.toLowerCase().includes(term)) ||
+          (order.user?.email &&
+            order.user.email.toLowerCase().includes(term)) ||
           (order.user?.phone && order.user.phone.includes(term)) ||
           (order.address?.address &&
             order.address.address.toLowerCase().includes(term))
       );
+    }
+
+    // Filter by status
+    if (statusFilter) {
+      result = result.filter((order) => {
+        const statuses = order.status?.filter((s) => s.status) || [];
+        const latestStatus = statuses[statuses.length - 1]; // assuming chronological order
+        return latestStatus?.title === statusFilter;
+      });
     }
 
     // Filter by date range
@@ -84,8 +91,32 @@ const PesananTable = () => {
     }
 
     setFilteredOrders(result);
-  };
+  }, [orders, searchTerm, startDate, endDate, statusFilter]);
 
+  useEffect(() => {
+    filterOrders();
+  }, [filterOrders]);
+
+  useEffect(() => {
+    fetchOrders();
+  }, []);
+
+  const fetchOrders = async () => {
+    try {
+      setLoading(true); // Ensure loading state is set when starting
+      const response = await axios.get("/api/v1/pesanan");
+      setOrders(response.data);
+      setFilteredOrders(response.data);
+      setError(null); // Clear any previous errors
+    } catch (err) {
+      console.error("Error fetching orders:", err);
+      setError("Failed to load orders");
+      setOrders([]); // Set empty array on error
+      setFilteredOrders([]);
+    } finally {
+      setLoading(false); // Always set loading to false
+    }
+  };
   const handleOrderClick = (order) => {
     setSelectedOrder(order);
     setEditedOrder(null);
@@ -151,7 +182,9 @@ const PesananTable = () => {
 
   const confirmDelete = async () => {
     try {
-      const response = await axios.delete(`/api/v1/pesanan/${orderToDelete.id}`);
+      const response = await axios.delete(
+        `/api/v1/pesanan/${orderToDelete.id}`
+      );
       if (response.status === 200 || response.status === 204) {
         await fetchOrders();
         setShowDeleteConfirm(false);
@@ -233,54 +266,58 @@ const PesananTable = () => {
       { label: "Nomor AWB", key: "courier.awb" },
     ];
 
-    const data = filteredOrders.map((order) => {
-      const statusOrder = [
-        "Pesanan Diterima",
-        "Pesanan Dikonfirmasi",
-        "Pesanan Dikirim",
-        "Pesanan Sampai Tujuan",
-      ];
+    const data = filteredOrders
+      .filter((order) => selectedIds.includes(order.id))
+      .map((order) => {
+        const statusOrder = [
+          "Pesanan Diterima",
+          "Pesanan Dikonfirmasi",
+          "Pesanan Dikirim",
+          "Pesanan Sampai Tujuan",
+        ];
 
-      const completedStatuses = order.status?.filter((s) => s.status) || [];
-      let currentStatus = "Pending";
-      for (let i = statusOrder.length - 1; i >= 0; i--) {
-        const found = completedStatuses.find((s) => s.title === statusOrder[i]);
-        if (found) {
-          currentStatus = found.title;
-          break;
+        const completedStatuses = order.status?.filter((s) => s.status) || [];
+        let currentStatus = "Pending";
+        for (let i = statusOrder.length - 1; i >= 0; i--) {
+          const found = completedStatuses.find(
+            (s) => s.title === statusOrder[i]
+          );
+          if (found) {
+            currentStatus = found.title;
+            break;
+          }
         }
-      }
 
-      return {
-        ...order,
-        "user.name": order.user?.name || "",
-        "user.email": order.user?.email || "",
-        "user.phone": order.user?.phone || "",
-        order_date: order.order_date?.toDate
-          ? order.order_date.toDate().toLocaleDateString("id-ID", {
-              day: "numeric",
-              month: "long",
-              year: "numeric",
-            })
-          : new Date(order.order_date._seconds * 1000).toLocaleDateString(
-              "id-ID",
-              {
+        return {
+          ...order,
+          "user.name": order.user?.name || "",
+          "user.email": order.user?.email || "",
+          "user.phone": order.user?.phone || "",
+          order_date: order.order_date?.toDate
+            ? order.order_date.toDate().toLocaleDateString("id-ID", {
                 day: "numeric",
                 month: "long",
                 year: "numeric",
-              }
-            ),
-        "address.address": order.address?.address || "",
-        "address.city": order.address?.city || "",
-        "courier.name": order.courier?.name || "",
-        "courier.service": order.courier?.service || "",
-        "courier.price": order.courier?.price || 0,
-        subtotal: order.subtotal || 0,
-        total: order.total || 0,
-        status: currentStatus,
-        "courier.awb": order.courier?.awb || "",
-      };
-    });
+              })
+            : new Date(order.order_date._seconds * 1000).toLocaleDateString(
+                "id-ID",
+                {
+                  day: "numeric",
+                  month: "long",
+                  year: "numeric",
+                }
+              ),
+          "address.address": order.address?.address || "",
+          "address.city": order.address?.city || "",
+          "courier.name": order.courier?.name || "",
+          "courier.service": order.courier?.service || "",
+          "courier.price": order.courier?.price || 0,
+          subtotal: order.subtotal || 0,
+          total: order.total || 0,
+          status: currentStatus,
+          "courier.awb": order.courier?.awb || "",
+        };
+      });
 
     return { data, headers };
   };
@@ -299,8 +336,9 @@ const PesananTable = () => {
     <div className="p-4">
       {/* Search and Filter Section */}
       <div className="mb-6 bg-white p-4 rounded-lg shadow">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div className="w-full md:w-1/3">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          {/* Search Input */}
+          <div className="w-full md:w-1/4">
             <input
               type="text"
               placeholder="Cari berdasarkan ID, nama, email, atau alamat..."
@@ -309,8 +347,27 @@ const PesananTable = () => {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <div className="flex flex-col md:flex-row gap-2 w-full md:w-2/3">
-            <div className="flex items-center gap-2">
+
+          {/* Filters and CSV Export */}
+          <div className="w-full md:w-3/4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            {/* Filters */}
+            <div className="flex flex-wrap items-center gap-2">
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="border rounded px-3 py-2 min-w-[180px]"
+              >
+                <option value="">Semua Status</option>
+                <option value="Pesanan Diterima">Pesanan Diterima</option>
+                <option value="Pesanan Dikonfirmasi">
+                  Pesanan Dikonfirmasi
+                </option>
+                <option value="Pesanan Dikirim">Pesanan Dikirim</option>
+                <option value="Pesanan Sampai Tujuan">
+                  Pesanan Sampai Tujuan
+                </option>
+              </select>
+
               <DatePicker
                 selected={startDate}
                 onChange={(date) => setStartDate(date)}
@@ -333,11 +390,13 @@ const PesananTable = () => {
                 className="border rounded px-3 py-2"
                 dateFormat="dd/MM/yyyy"
               />
-              {(startDate || endDate) && (
+
+              {(startDate || endDate || statusFilter) && (
                 <button
                   onClick={() => {
                     setStartDate(null);
                     setEndDate(null);
+                    setStatusFilter("");
                   }}
                   className="px-3 py-2 bg-gray-200 rounded hover:bg-gray-300"
                 >
@@ -345,12 +404,21 @@ const PesananTable = () => {
                 </button>
               )}
             </div>
-            <div className="ml-auto">
+
+            {/* Export Button */}
+            <div className="flex justify-end md:justify-start">
               <CSVLink
-                data={csvData}
+                data={csvData.length ? csvData : []}
                 headers={csvHeaders}
                 filename={`pesanan-${new Date().toISOString()}.csv`}
-                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                className={`px-4 py-2 rounded ${
+                  csvData.length
+                    ? "bg-green-600 text-white hover:bg-green-700"
+                    : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                }`}
+                onClick={(e) => {
+                  if (!csvData.length) e.preventDefault();
+                }}
               >
                 Export to CSV
               </CSVLink>
@@ -368,6 +436,16 @@ const PesananTable = () => {
             <table className="min-w-full bg-white border-separate border-spacing-y-2">
               <thead className="bg-white">
                 <tr>
+                  <th className="py-3 px-4 text-left">
+                    <input
+                      type="checkbox"
+                      checked={
+                        filteredOrders.length > 0 &&
+                        selectedIds.length === filteredOrders.length
+                      }
+                      onChange={toggleSelectAll}
+                    />
+                  </th>
                   <th className="py-3 px-4 text-left text-black/40 font-semibold">
                     ID Order
                   </th>
@@ -388,6 +466,7 @@ const PesananTable = () => {
                   </th>
                 </tr>
               </thead>
+
               <tbody>
                 {filteredOrders.map((order, index) => {
                   const statusOrder = [
@@ -426,6 +505,13 @@ const PesananTable = () => {
                         index % 2 === 0 ? "bg-gray-100" : "bg-gray-50"
                       }`}
                     >
+                      <td className="py-4 px-4">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.includes(order.id)}
+                          onChange={() => toggleSelectOne(order.id)}
+                        />
+                      </td>
                       <td className="py-4 px-4 rounded-l-[1vw]">{order.id}</td>
                       <td className="py-4 px-4">{order.user?.name || "N/A"}</td>
                       <td className="py-4 px-4">
