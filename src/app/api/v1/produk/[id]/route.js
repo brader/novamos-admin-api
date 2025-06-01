@@ -40,3 +40,37 @@ export async function DELETE(request, { params }) {
     );
   }
 }
+
+export async function GET(request, { params }) {
+  try {
+    const { id } = params;
+    
+    if (!id) {
+      return NextResponse.json(
+        { error: 'Product ID is required' },
+        { status: 400 }
+      );
+    }
+
+    const doc = await db.collection('produk').doc(id).get();
+    
+    if (!doc.exists) {
+      return NextResponse.json(
+        { error: 'Product not found' },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({
+      id: doc.id,
+      ...doc.data()
+    });
+    
+  } catch (error) {
+    console.error('Error fetching product:', error);
+    return NextResponse.json(
+      { error: 'Failed to fetch product' },
+      { status: 500 }
+    );
+  }
+}
