@@ -9,9 +9,11 @@ function generateOTP() {
 
 function generateUniqueId(length = 16) {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-  return Array.from({ length }, () => 
-    chars.charAt(Math.floor(Math.random() * chars.length))
-    .join(''));
+  let result = '';
+  for (let i = 0; i < length; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
 }
 
 export async function POST(request) {
