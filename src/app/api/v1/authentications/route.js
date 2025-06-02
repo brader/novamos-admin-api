@@ -7,10 +7,31 @@ const JWT_SECRET = process.env.JWT_SECRET;
 export async function POST(request) {
   try {
     const { otp, uniq, phone } = await request.json();
+    console.log('Received request with:', { otp, uniq, phone });
 
     // Verify OTP
     const otpDoc = await db.collection('otps').doc(uniq).get();
-    if (!otpDoc.exists || otpDoc.data().otp !== otp) {
+    console.log('Firebase OTP document:', otpDoc.exists ? otpDoc.data() : 'NOT FOUND');
+
+    if (!otpDoc.exists) {
+      console.log('OTP document not found for uniq:', uniq);
+      return NextResponse.json(
+        { error: 'Invalid OTP' },
+        { status: 401 }
+      );
+    }
+
+    const storedOtp = otpDoc.data().otp;
+    console.log('Stored OTP:', storedOtp, 'Type:', typeof storedOtp);
+    console.log('Received OTP:', otp, 'Type:', typeof otp);
+
+    if (String(storedOtp) !== String(otp)) {
+      console.log('OTP mismatch:', {
+        stored: storedOtp,
+        received: otp,
+        storedType: typeof storedOtp,
+        receivedType: typeof otp
+      });
       return NextResponse.json(
         { error: 'Invalid OTP' },
         { status: 401 }
