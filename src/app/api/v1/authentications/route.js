@@ -51,11 +51,21 @@ export async function POST(request) {
       );
     }
 
-    const user = { id: userSnapshot.docs[0].id, ...userSnapshot.docs[0].data() };
+    const userDoc = userSnapshot.docs[0];
+    const userData = userDoc.data();
     
+    // Extract required user fields
+    const user = {
+      id: userDoc.id,
+      email: userData.email || '',
+      phone: userData.phone || '',
+      name: userData.name || '',
+      profile: userData.profile || '' // assuming profile might be a URL or object
+    };
+
     // Generate tokens
     const accessToken = jwt.sign(
-      { userId: user.id, phone },
+      { userId: user.id, phone: user.phone },
       JWT_SECRET,
       { expiresIn: '15m' }
     );
@@ -74,14 +84,17 @@ export async function POST(request) {
       data: {
         accessToken,
         refreshToken,
-        user
+        email: user.email,
+        phone: user.phone,
+        name: user.name,
+        profile: user.profile
       }
     });
 
   } catch (error) {
     console.error('Login error:', error);
     return NextResponse.json(
-      { error: 'Authentication failed' },
+      { error: 'Authentication failed', details: error.message },
       { status: 500 }
     );
   }
