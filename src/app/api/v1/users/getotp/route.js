@@ -1,78 +1,61 @@
+import { sendMessage } from '@/app/utils';
 import { db } from '@/firebase/configure';
 import { NextResponse } from 'next/server';
-import admin from 'firebase-admin';
 
-// Initialize Firebase Admin if not already done
-if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert({
-      projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n')
-    })
-  });
+// Helper functions
+function generateOTP() {
+  return Math.floor(1000 + Math.random() * 9000); // 4-digit OTP
+}
+
+function generateUniqueId(length = 16) {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let result = '';
+  for (let i = 0; i < length; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
 }
 
 export async function POST(request) {
   try {
-    const { otp, uniq, phone } = await request.json();
-
-    // Verify OTP exists and matches
-    const otpDoc = await db.collection('otps').doc(uniq).get();
+    const { phone } = await request.json();
     
-    if (!otpDoc.exists || otpDoc.data().otp !== otp) {
+    // Validate phone number (basic validation)
+    if (!phone || phone.length < 10) {
       return NextResponse.json(
-        { error: 'Invalid OTP code' },
-        { status: 401 }
+        { error: 'Valid phone number required' },
+        { status: 400 }
       );
     }
 
-    // Check OTP expiration
-    const expiresAt = new Date(otpDoc.data().expiresAt);
-    if (expiresAt < new Date()) {
-      return NextResponse.json(
-        { error: 'OTP has expired' },
-        { status: 401 }
-      );
-    }
+    const otp = generateOTP();
+    const uniq = generateUniqueId();
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes expiry
 
-    // Find user by phone
-    const userSnapshot = await db.collection('pengguna')
-      .where('phone', '==', phone)
-      .limit(1)
-      .get();
-
-    if (userSnapshot.empty) {
-      return NextResponse.json(
-        { error: 'User not found. Please register first.' },
-        { status: 404 }
-      );
-    }
-
-    const user = userSnapshot.docs[0].data();
-    const userId = userSnapshot.docs[0].id;
-
-    // Generate Firebase auth token
-    const token = await admin.auth().createCustomToken(userId);
-
-    // Mark OTP as used
-    await db.collection('otps').doc(uniq).update({ verified: true });
-
-    return NextResponse.json({
-      status: 'success',
-      data: {
-        accessToken: token,
-        user: {
-          id: userId,
-          ...user
-        }
-      }
+    // Save to Firestore
+    await db.collection('otps').doc(uniq).set({
+      otp,
+      phone,
+      expiresAt,
+      createdAt: new Date().toISOString()
     });
 
-  } catch (error) {
-    console.error('Authentication error:', error);
+    // In production, implement your SMS service (Twilio, etc.)
+    await sendMessage(`62${phone}`, `Kode OTP anda : ${otp}`);
+    console.log(`OTP for ${phone}: ${otp}`); // For development only
+
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { 
+        message: 'OTP sent successfully',
+        data: { uniq } 
+      },
+      { status: 201 }
+    );
+
+  } catch (error) {
+    console.error('Error generating OTP:', error);
+    return NextResponse.json(
+      { error: 'Failed to send OTP' },
       { status: 500 }
     );
   }
