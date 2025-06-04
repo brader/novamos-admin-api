@@ -13,8 +13,8 @@ export async function POST(request) {
   }
 
   const dataSending = {
-    api_key: "9PLIFTHALSK06CW3",
-    number_key: "eBm4I6xYrAiqLJTL",
+    api_key: process.env.WATZAP_API_KEY,
+    number_key: process.env.WATZAP_NUMBER_KEY,
     phone_no: phoneNo,
     message: message,
   }
