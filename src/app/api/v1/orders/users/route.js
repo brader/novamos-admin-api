@@ -1,22 +1,8 @@
 // app/api/orders/route.js
 import { NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
-
-// Mock database - replace with your actual Firestore connection
-const db = {
-  orders: [
-    // Sample data structure
-    {
-      id: 'order1',
-      userId: 'user1',
-      items: [{ productId: 'prod1', quantity: 2 }],
-      status: 'pending',
-      createdAt: new Date(),
-      shippingAddress: { /* address data */ },
-      payment: { method: 'credit_card' }
-    }
-  ]
-};
+import { db } from '@/firebase/configure';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
@@ -41,23 +27,28 @@ export async function GET(request) {
       );
     }
 
-    console.log('Received token:', token);
     // Verify token and get user ID
     const decoded = verifyToken(token);
     const userId = decoded.userId;
 
-    // In a real app, you would query your database here
-    // This is just filtering mock data
-    const userOrders = db.orders.filter(order => order.userId === userId);
+    // Get orders from Firestore
+    const ordersRef = collection(db, 'pesanan');
+    const q = query(ordersRef, where('userId', '==', userId));
+    const querySnapshot = await getDocs(q);
     
-    // Format dates to ISO strings
-    const formattedOrders = userOrders.map(order => ({
-      ...order,
-      createdAt: order.createdAt.toISOString(),
-      updatedAt: order.updatedAt?.toISOString() || order.createdAt.toISOString()
-    }));
+    const orders = [];
+    querySnapshot.forEach((doc) => {
+      const orderData = doc.data();
+      orders.push({
+        id: doc.id,
+        ...orderData,
+        // Convert Firestore Timestamp to JavaScript Date
+        createdAt: orderData.createdAt?.toDate().toISOString(),
+        updatedAt: orderData.updatedAt?.toDate().toISOString()
+      });
+    });
 
-    return NextResponse.json(formattedOrders);
+    return NextResponse.json(orders);
     
   } catch (error) {
     console.error('Error fetching orders:', error);
@@ -108,22 +99,21 @@ export async function POST(request) {
       );
     }
 
-    // Create new order
+    // Create new order in Firestore
+    const ordersRef = collection(db, 'pesanan');
     const newOrder = {
-      id: `order${db.orders.length + 1}`,
       userId,
       ...orderData,
       status: 'pending',
       createdAt: new Date(),
       updatedAt: new Date()
     };
- 
-    // In a real app, you would save to your database here
-    db.orders.push(newOrder);
+
+    const docRef = await addDoc(ordersRef, newOrder);
 
     return NextResponse.json(
       { 
-        id: newOrder.id,
+        id: docRef.id,
         message: 'Order created successfully',
         order: {
           ...newOrder,
