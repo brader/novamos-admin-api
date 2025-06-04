@@ -1,25 +1,20 @@
 import { db } from '@/firebase/configure';
 import { NextResponse } from 'next/server';
-import { getToken } from 'next-auth/jwt';
 
 export async function GET(request) {
   try {
-    const token = await getToken({ req: request });
-    
-    if (!token) {
-      return NextResponse.json(
-        { error: 'Authentication required' },
-        { status: 401 }
-      );
-    }
-
+    // For simplicity, we'll return all orders
+    // In a real app, you might want to add some filters or limits
     const ordersSnapshot = await db.collection('orders')
-      .where('userId', '==', token.userId)
+      .orderBy('createdAt', 'desc')
+      .limit(50) // Prevent returning too many orders
       .get();
 
     const orders = ordersSnapshot.docs.map(doc => ({
       id: doc.id,
-      ...doc.data()
+      ...doc.data(),
+      createdAt: doc.data().createdAt?.toDate()?.toISOString(),
+      updatedAt: doc.data().updatedAt?.toDate()?.toISOString(),
     }));
 
     return NextResponse.json(orders);
@@ -35,26 +30,49 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
-    const token = await getToken({ req: request });
     const orderData = await request.json();
-
-    if (!token) {
+    
+    // Validate required fields
+    if (!orderData.items || !Array.isArray(orderData.items) || orderData.items.length === 0) {
       return NextResponse.json(
-        { error: 'Authentication required' },
-        { status: 401 }
+        { error: 'Order must contain at least one item' },
+        { status: 400 }
       );
     }
 
-    const orderRef = await db.collection('orders').add({
+    if (!orderData.shippingAddress) {
+      return NextResponse.json(
+        { error: 'Shipping address is required' },
+        { status: 400 }
+      );
+    }
+
+    if (!orderData.payment?.method) {
+      return NextResponse.json(
+        { error: 'Payment method is required' },
+        { status: 400 }
+      );
+    }
+
+    // Create order document
+    const orderDoc = {
       ...orderData,
-      userId: token.userId,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       status: 'pending'
-    });
+    };
+
+    const orderRef = await db.collection('orders').add(orderDoc);
 
     return NextResponse.json(
-      { id: orderRef.id, message: 'Order created successfully' },
+      { 
+        id: orderRef.id,
+        message: 'Order created successfully',
+        order: {
+          id: orderRef.id,
+          ...orderDoc
+        }
+      },
       { status: 201 }
     );
 
