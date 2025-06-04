@@ -19,6 +19,8 @@ export async function GET(request) {
     const decoded = jwt.verify(token, JWT_SECRET);
     const userId = decoded.userId; // Assuming your JWT contains userId
 
+    console.log('Decoded user ID:', userId);
+
     // 2. Fetch only orders belonging to this user
     const ordersSnapshot = await db.collection('pesanan')
       .where('userId', '==', userId) // Filter by user ID
