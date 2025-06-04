@@ -59,7 +59,6 @@ export async function POST(request) {
       ...orderData,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      status: 'pending'
     };
 
     const orderRef = await db.collection('pesanan').add(orderDoc);
