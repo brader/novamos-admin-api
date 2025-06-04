@@ -34,12 +34,25 @@ export async function GET(request) {
         .where("userId", "==", userId)
         .get();
 
-      const orders = ordersSnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate()?.toISOString(),
-        updatedAt: doc.data().updatedAt?.toDate()?.toISOString(),
-      }));
+      const orders = ordersSnapshot.docs
+        .map((doc) => {
+          const data = doc.data();
+
+          return {
+            id: doc.id,
+            ...data,
+            updatedAt:
+              data.updatedAt && typeof data.updatedAt.toDate === "function"
+                ? data.updatedAt.toDate().toISOString()
+                : null,
+          };
+        })
+        .sort((a, b) => {
+          // Optional: sort by updatedAt descending (newest first)
+          return (
+            new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+          );
+        });
 
       return NextResponse.json(orders);
     } catch (queryError) {
