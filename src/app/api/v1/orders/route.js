@@ -59,6 +59,7 @@ export async function POST(request) {
       ...orderData,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
+      order_date: new Date().toISOString(),
     };
 
     const orderRef = await db.collection('pesanan').add(orderDoc);
