@@ -116,7 +116,7 @@ export async function POST(request) {
       createdAt: new Date(),
       updatedAt: new Date()
     };
-
+ 
     // In a real app, you would save to your database here
     db.orders.push(newOrder);
 
