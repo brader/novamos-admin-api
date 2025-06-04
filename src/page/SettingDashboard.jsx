@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation';
 const SettingDashboard = () => {
   const router = useRouter();
   const [postalCode, setPostalCode] = useState('');
+  const [accountNumber, setAccountNumber] = useState('');
+  const [bankName, setBankName] = useState('');
   const [expeditions, setExpeditions] = useState({
     JNE: false,
     JNT: false,
@@ -27,6 +29,12 @@ const SettingDashboard = () => {
           const data = await response.json();
           if (data.warehousePostalCode) {
             setPostalCode(data.warehousePostalCode);
+          }
+          if (data.accountNumber) {
+            setAccountNumber(data.accountNumber);
+          }
+          if (data.bankName) {
+            setBankName(data.bankName);
           }
           if (data.availableExpeditions) {
             setExpeditions(data.availableExpeditions);
@@ -59,6 +67,8 @@ const SettingDashboard = () => {
         },
         body: JSON.stringify({
           warehousePostalCode: postalCode,
+          accountNumber: accountNumber,
+          bankName: bankName,
           availableExpeditions: expeditions
         }),
       });
@@ -100,6 +110,34 @@ const SettingDashboard = () => {
             className="border rounded px-3 py-2 w-64"
             maxLength={5}
           />
+        </div>
+      </div>
+
+      <div className="bg-white p-6 rounded-lg shadow-md">
+        <h2 className="text-xl font-semibold mb-4">Informasi Bank</h2>
+        <div className="space-y-4">
+          <div className="flex flex-col">
+            <label htmlFor="bankName" className="mb-1">Nama Bank</label>
+            <input
+              type="text"
+              id="bankName"
+              value={bankName}
+              onChange={(e) => setBankName(e.target.value)}
+              placeholder="Contoh: BCA, Mandiri, BRI"
+              className="border rounded px-3 py-2 w-full md:w-64"
+            />
+          </div>
+          <div className="flex flex-col">
+            <label htmlFor="accountNumber" className="mb-1">Nomor Rekening</label>
+            <input
+              type="text"
+              id="accountNumber"
+              value={accountNumber}
+              onChange={(e) => setAccountNumber(e.target.value)}
+              placeholder="Masukkan nomor rekening"
+              className="border rounded px-3 py-2 w-full md:w-64"
+            />
+          </div>
         </div>
       </div>
 

@@ -12,6 +12,8 @@ export async function GET() {
       // Initialize with default settings if document doesn't exist
       const defaultSettings = {
         warehousePostalCode: '',
+        accountNumber: '',
+        bankName: '',
         availableExpeditions: {
           JNE: true,
           JNT: true,

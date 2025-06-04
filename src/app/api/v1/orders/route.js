@@ -62,7 +62,7 @@ export async function POST(request) {
       status: 'pending'
     };
 
-    const orderRef = await db.collection('orders').add(orderDoc);
+    const orderRef = await db.collection('pesanan').add(orderDoc);
 
     return NextResponse.json(
       { 
