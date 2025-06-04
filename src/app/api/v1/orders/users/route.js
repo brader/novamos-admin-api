@@ -6,52 +6,76 @@ const JWT_SECRET = process.env.JWT_SECRET;
 
 export async function GET(request) {
   try {
-    // 1. Get and verify authorization token
+    // 1. Authorization check
     const authHeader = request.headers.get('authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    if (!authHeader?.startsWith('Bearer ')) {
       return NextResponse.json(
-        { error: 'Authorization token required' },
+        { error: 'Missing or invalid authorization header' },
         { status: 401 }
       );
     }
 
     const token = authHeader.split(' ')[1];
     const decoded = jwt.verify(token, JWT_SECRET);
-    const userId = decoded.userId; // Assuming your JWT contains userId
+    
+    if (!decoded?.userId) {
+      return NextResponse.json(
+        { error: 'Invalid token payload' },
+        { status: 401 }
+      );
+    }
 
-    console.log('Decoded user ID:', userId);
+    const userId = decoded.userId;
 
-    // 2. Fetch only orders belonging to this user
-    const ordersSnapshot = await db.collection('pesanan')
-      .where('userId', '==', userId) // Filter by user ID
-      .orderBy('createdAt', 'desc')
-      .limit(50)
-      .get();
+    // 2. Query with error handling for index issues
+    try {
+      const ordersSnapshot = await db.collection('pesanan')
+        .where('userId', '==', userId)
+        .orderBy('createdAt', 'desc')
+        .limit(50)
+        .get();
 
-    const orders = ordersSnapshot.docs.map(doc => {
-      const data = doc.data();
-      return {
+      const orders = ordersSnapshot.docs.map(doc => ({
         id: doc.id,
-        ...data,
-        createdAt: data.createdAt?.toDate?.()?.toISOString() ?? data.createdAt,
-        updatedAt: data.updatedAt?.toDate?.()?.toISOString() ?? data.updatedAt,
-      };
-    });
+        ...doc.data(),
+        createdAt: doc.data().createdAt?.toDate()?.toISOString(),
+        updatedAt: doc.data().updatedAt?.toDate()?.toISOString()
+      }));
 
-    return NextResponse.json(orders);
+      return NextResponse.json(orders);
+      
+    } catch (queryError) {
+      console.error('Firestore query error:', queryError);
+      
+      if (queryError.code === 9) { // FAILED_PRECONDITION
+        return NextResponse.json(
+          { 
+            error: 'Server configuration issue',
+            details: 'The query requires an index to be created',
+            fix: queryError.details // Contains the direct link
+          },
+          { status: 500 }
+        );
+      }
+      
+      throw queryError; // Re-throw other errors
+    }
 
   } catch (error) {
-    console.error('Error fetching orders:', error);
+    console.error('Error in orders endpoint:', error);
     
     if (error.name === 'JsonWebTokenError') {
       return NextResponse.json(
-        { error: 'Invalid authorization token' },
+        { error: 'Invalid or expired token' },
         { status: 401 }
       );
     }
 
     return NextResponse.json(
-      { error: 'Failed to fetch orders' },
+      { 
+        error: 'Internal server error',
+        ...(process.env.NODE_ENV === 'development' && { details: error.message })
+      },
       { status: 500 }
     );
   }
