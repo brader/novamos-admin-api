@@ -18,7 +18,7 @@ const db = {
   ]
 };
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+const JWT_SECRET = process.env.JWT_SECRET;
 
 // Helper function to verify JWT token
 const verifyToken = (token) => {
@@ -41,6 +41,7 @@ export async function GET(request) {
       );
     }
 
+    console.log('Received token:', token);
     // Verify token and get user ID
     const decoded = verifyToken(token);
     const userId = decoded.userId;
