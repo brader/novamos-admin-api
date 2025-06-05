@@ -3,8 +3,8 @@ import { NextResponse } from 'next/server';
 
 export async function GET(request, { params }) {
   try {
-    const { category } = params;
-    const decodedCategory = decodeURIComponent(category);
+    const { kategori } = params;
+    const decodedCategory = decodeURIComponent(kategori);
 
     const productsRef = db.collection('produk');
     const snapshot = await productsRef
