@@ -123,10 +123,10 @@ const PesananTable = () => {
         ...(prev.items || []),
         {
           id: product.id,
-          title: product.name,
+          name: product.name,
           price: product.price,
           weight: product.berat,
-          qty: 1,
+          quantity: 1,
         },
       ],
     }));
@@ -156,7 +156,7 @@ const PesananTable = () => {
       const newItems = [...prev.items];
       newItems[index] = {
         ...newItems[index],
-        qty: qty,
+        quantity: qty,
       };
       return {
         ...prev,
@@ -170,7 +170,7 @@ const PesananTable = () => {
   const recalculateTotals = () => {
     setEditedOrder((prev) => {
       const subtotal =
-        prev.items?.reduce((sum, item) => sum + item.price * item.qty, 0) || 0;
+        prev.items?.reduce((sum, item) => sum + item.price * item.quantity, 0) || 0;
       const shipping = prev.courier?.price || 0;
       return {
         ...prev,
@@ -850,20 +850,20 @@ const PesananTable = () => {
                         : selectedOrder.items
                       )?.map((item, index) => (
                         <tr key={index} className="border-t">
-                          <td className="py-2 px-4">{item.title}</td>
+                          <td className="py-2 px-4">{item.name}</td>
                           <td className="py-2 px-4">
                             {editMode ? (
                               <input
                                 type="number"
                                 min="1"
-                                value={item.qty}
+                                value={item.price}
                                 onChange={(e) =>
                                   handleQuantityChange(index, e.target.value)
                                 }
                                 className="border rounded px-2 py-1 w-16"
                               />
                             ) : (
-                              item.qty
+                              item.quantity
                             )}
                           </td>
                           <td className="py-2 px-4">
@@ -871,7 +871,7 @@ const PesananTable = () => {
                           </td>
                           <td className="py-2 px-4">
                             Rp{" "}
-                            {(item.qty * item.price)?.toLocaleString("id-ID")}
+                            {(item.quantity * item.price)?.toLocaleString("id-ID")}
                           </td>
                           {editMode && (
                             <td className="py-2 px-4">
