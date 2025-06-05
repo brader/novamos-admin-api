@@ -1,5 +1,5 @@
-import { db } from "@/firebase/configure";
-import { collection, query, where, getDocs } from "firebase/firestore";
+// pages/api/kategori/[kategori].js
+import { db } from "@/firebase/configure"; // Assuming this exports the firebase-admin db
 
 export default async function handler(req, res) {
   const { kategori } = req.query;
@@ -13,18 +13,20 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Query products where category matches (case insensitive)
-    const productsRef = collection(db, 'produk');
-    const q = query(
-      productsRef, 
-      where('kategori', '>=', kategori.toLowerCase()),
-      where('kategori', '<=', kategori.toLowerCase() + '\uf8ff')
-    );
-
-    const querySnapshot = await getDocs(q);
-    const products = [];
+    // Get reference to the 'produk' collection
+    const productsRef = db.collection('produk');
     
-    querySnapshot.forEach((doc) => {
+    // Query for products in the specified category (case sensitive)
+    const snapshot = await productsRef
+      .where('kategori', '==', kategori)
+      .get();
+
+    if (snapshot.empty) {
+      return res.status(200).json([]);
+    }
+
+    const products = [];
+    snapshot.forEach(doc => {
       products.push({
         id: doc.id,
         ...doc.data()
