@@ -8,7 +8,7 @@ export async function GET(request, { params }) {
 
     const productsRef = db.collection('produk');
     const snapshot = await productsRef
-      .where('kategori', '==', decodedCategory)
+      .where('categoryName', '==', decodedCategory)
       .get();
 
     const products = [];
