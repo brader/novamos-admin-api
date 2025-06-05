@@ -1,29 +1,15 @@
-// pages/api/kategori/[kategori].js
-import { db } from "@/firebase/configure"; // Assuming this exports the firebase-admin db
+import { db } from "@/firebase/configure";
+import { NextResponse } from 'next/server';
 
-export default async function handler(req, res) {
-  const { kategori } = req.query;
-
-  if (req.method !== 'GET') {
-    return res.status(405).json({ message: 'Method not allowed' });
-  }
-
-  if (!kategori) {
-    return res.status(400).json({ message: 'Category name is required' });
-  }
-
+export async function GET(request, { params }) {
   try {
-    // Get reference to the 'produk' collection
-    const productsRef = db.collection('produk');
-    
-    // Query for products in the specified category (case sensitive)
-    const snapshot = await productsRef
-      .where('kategori', '==', kategori)
-      .get();
+    const { category } = params;
+    const decodedCategory = decodeURIComponent(category);
 
-    if (snapshot.empty) {
-      return res.status(200).json([]);
-    }
+    const productsRef = db.collection('produk');
+    const snapshot = await productsRef
+      .where('kategori', '==', decodedCategory)
+      .get();
 
     const products = [];
     snapshot.forEach(doc => {
@@ -33,9 +19,15 @@ export default async function handler(req, res) {
       });
     });
 
-    return res.status(200).json(products);
+    return NextResponse.json(products);
   } catch (error) {
-    console.error('Error fetching products by category:', error);
-    return res.status(500).json({ message: 'Internal server error' });
+    console.error('Error:', error);
+    return NextResponse.json(
+      { message: 'Internal server error' },
+      { status: 500 }
+    );
   }
 }
+
+// Optional: Explicitly define supported methods
+export const dynamic = 'force-dynamic'; // For dynamic routes
