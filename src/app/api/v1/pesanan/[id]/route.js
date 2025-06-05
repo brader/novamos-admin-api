@@ -100,7 +100,7 @@ export async function PUT(request, { params }) {
         return step;
       });
       
-      updates.status = JSON.stringify(updatedStatus);
+      updates.status = updatedStatus;
     }
 
     await orderRef.update(updates);
