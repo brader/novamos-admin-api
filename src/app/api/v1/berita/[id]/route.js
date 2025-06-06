@@ -113,3 +113,36 @@ export async function DELETE(request, { params }) {
     );
   }
 }
+
+// This should be added to your backend API (but don't edit your existing backend as per your request)
+export async function GET(request, { params }) {
+  try {
+    const { id } = params;
+    const docRef = db.collection('berita').doc(id);
+    const doc = await docRef.get();
+
+    if (!doc.exists) {
+      return NextResponse.json(
+        { error: 'Article not found' },
+        { status: 404 }
+      );
+    }
+
+    const article = {
+      id: doc.id,
+      ...doc.data(),
+      // Convert Firestore timestamps to ISO strings
+      date: doc.data().date?.toDate?.()?.toISOString?.(),
+      createdAt: doc.data().createdAt?.toDate?.()?.toISOString?.(),
+      updatedAt: doc.data().updatedAt?.toDate?.()?.toISOString?.(),
+    };
+
+    return NextResponse.json(article);
+  } catch (error) {
+    console.error('Error fetching article:', error);
+    return NextResponse.json(
+      { error: 'Failed to fetch article' },
+      { status: 500 }
+    );
+  }
+}
