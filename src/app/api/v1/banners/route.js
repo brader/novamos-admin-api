@@ -45,11 +45,24 @@ export async function POST(request) {
       );
     }
 
-    // Upload image to Firebase Storage
-    const storageRef = storage.ref();
-    const imageRef = storageRef.child(`banners/${Date.now()}_${imageFile.name}`);
-    await imageRef.put(imageFile);
-    const imageUrl = await imageRef.getDownloadURL();
+    // Upload image to Firebase Storage using bucket
+    const bucket = storage.bucket();
+    const fileName = `banners/${Date.now()}_${imageFile.name}`;
+    const file = bucket.file(fileName);
+
+    // Convert File object to buffer
+    const buffer = Buffer.from(await imageFile.arrayBuffer());
+    
+    // Upload the file
+    await file.save(buffer, {
+      metadata: {
+        contentType: imageFile.type,
+      },
+    });
+
+    // Make the file public and get URL
+    await file.makePublic();
+    const imageUrl = `https://storage.googleapis.com/${bucket.name}/${file.name}`;
 
     // Save to Firestore
     const bannerData = {
@@ -107,24 +120,35 @@ export async function PUT(request) {
     }
 
     let imageUrl = bannerDoc.data().imageUrl;
+    const bucket = storage.bucket();
 
     // If new image is uploaded
     if (imageFile) {
       // Delete old image if exists
       if (imageUrl) {
         try {
-          const oldImageRef = storage.refFromURL(imageUrl);
-          await oldImageRef.delete();
+          // Extract file path from URL
+          const oldFilePath = imageUrl.replace(`https://storage.googleapis.com/${bucket.name}/`, '');
+          const oldFile = bucket.file(oldFilePath);
+          await oldFile.delete();
         } catch (error) {
           console.error('Error deleting old image:', error);
         }
       }
 
       // Upload new image
-      const storageRef = storage.ref();
-      const newImageRef = storageRef.child(`banners/${Date.now()}_${imageFile.name}`);
-      await newImageRef.put(imageFile);
-      imageUrl = await newImageRef.getDownloadURL();
+      const fileName = `banners/${Date.now()}_${imageFile.name}`;
+      const newFile = bucket.file(fileName);
+      
+      const buffer = Buffer.from(await imageFile.arrayBuffer());
+      await newFile.save(buffer, {
+        metadata: {
+          contentType: imageFile.type,
+        },
+      });
+
+      await newFile.makePublic();
+      imageUrl = `https://storage.googleapis.com/${bucket.name}/${newFile.name}`;
     }
 
     // Update banner data
@@ -179,8 +203,10 @@ export async function DELETE(request) {
     const bannerData = bannerDoc.data();
     if (bannerData.imageUrl) {
       try {
-        const imageRef = storage.refFromURL(bannerData.imageUrl);
-        await imageRef.delete();
+        const bucket = storage.bucket();
+        const filePath = bannerData.imageUrl.replace(`https://storage.googleapis.com/${bucket.name}/`, '');
+        const file = bucket.file(filePath);
+        await file.delete();
       } catch (error) {
         console.error('Error deleting banner image:', error);
       }
