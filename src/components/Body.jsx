@@ -1,4 +1,5 @@
 import AdminDashboard from "@/page/AdminDashboard"
+import BannerDashboard from "@/page/BannerDashboard"
 import BeritaDashboard from "@/page/BeritaDashboard"
 import BodyDashboard from "@/page/BodyDashboard"
 import KategoriDashboard from "@/page/KategoriDashboard"
@@ -22,6 +23,7 @@ const Body = ({ selected }) => {
         {selected === "Admin" ? <AdminDashboard /> : null}
         {selected === "Setting" ? <SettingDashboard /> : null}
         {selected === "Profile" ? <ProfileDashboard /> : null}
+        {selected === "Banner" ? <BannerDashboard /> : null}
     </div>
   )
 }

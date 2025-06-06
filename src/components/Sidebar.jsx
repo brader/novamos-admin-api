@@ -10,6 +10,7 @@ import penggunaIcon from '../assett/penggunaIcon.png';
 import beritaIcon from '../assett/beritaIcon.png';
 import adminIcon from '../assett/adminIcon.png';
 import settingIcon from '../assett/setting.png';
+import bannerIcon from '../assett/banner.png';
 
 const MenuItem = ({ text, icon, selected, onClick, isImage = false }) => {
   return (
@@ -51,6 +52,7 @@ const Sidebar = ({ selectedItem, setSelectedItem }) => {
     { text: 'Voucher', icon: voucherIcon },
     { text: 'Berita', icon: beritaIcon },
     { text: 'Admin', icon: adminIcon },
+    { text: 'Banner', icon: bannerIcon },
     { text: 'Setting', icon: settingIcon },
   ];
 
