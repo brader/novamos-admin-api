@@ -1,10 +1,30 @@
 import { NextResponse } from "next/server";
 import { db } from "@/firebase/configure";
+import jwt from "jsonwebtoken";
+
+const JWT_SECRET = process.env.JWT_SECRET;
 
 export async function GET(_, { params }) {
   const { id } = params;
 
   try {
+    // Get authorization header
+    const authHeader = _.headers.get("authorization");
+    let userId = null;
+
+    if (authHeader?.startsWith("Bearer ")) {
+      try {
+        const token = authHeader.split(" ")[1];
+        const decoded = jwt.verify(token, JWT_SECRET);
+        userId = decoded?.userId;
+      } catch (error) {
+        return NextResponse.json(
+          { error: "Invalid authentication token" },
+          { status: 401 }
+        );
+      }
+    }
+
     const docRef = db.collection("pesanan").doc(id);
     const docSnap = await docRef.get();
 
@@ -13,6 +33,14 @@ export async function GET(_, { params }) {
     }
 
     const data = docSnap.data();
+
+    // If authenticated, verify the user can access this order
+    if (userId && data.userId && data.userId !== userId) {
+      return NextResponse.json(
+        { error: "Access denied" },
+        { status: 403 }
+      );
+    }
 
     return NextResponse.json({
       order: {

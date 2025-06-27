@@ -2,7 +2,7 @@ import { db } from '@/firebase/configure';
 import { NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-key-for-development-only';
 
 export async function POST(request) {
   try {
@@ -16,12 +16,31 @@ export async function POST(request) {
     if (!otpDoc.exists) {
       console.log('OTP document not found for uniq:', uniq);
       return NextResponse.json(
-        { error: 'Invalid OTP' },
+        { error: 'Invalid or expired OTP' },
         { status: 401 }
       );
     }
 
-    const storedOtp = otpDoc.data().otp;
+    const otpData = otpDoc.data();
+    const storedOtp = otpData.otp;
+    const expiresAt = otpData.expiresAt;
+
+    // Check if OTP has expired - handle both Date object and ISO string
+    let isExpired = false;
+    if (expiresAt) {
+      const expirationTime = typeof expiresAt === 'string' ? new Date(expiresAt) : 
+                            (expiresAt.toDate ? expiresAt.toDate() : expiresAt);
+      isExpired = new Date() > expirationTime;
+    }
+
+    if (isExpired) {
+      await db.collection('otps').doc(uniq).delete(); // Clean up expired OTP
+      return NextResponse.json(
+        { error: 'OTP has expired. Please request a new one.' },
+        { status: 401 }
+      );
+    }
+
     console.log('Stored OTP:', storedOtp, 'Type:', typeof storedOtp);
     console.log('Received OTP:', otp, 'Type:', typeof otp);
 
@@ -95,6 +114,62 @@ export async function POST(request) {
     console.error('Login error:', error);
     return NextResponse.json(
       { error: 'Authentication failed', details: error.message },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PUT(request) {
+  try {
+    const { refreshToken } = await request.json();
+
+    if (!refreshToken) {
+      return NextResponse.json(
+        { error: 'Refresh token is required' },
+        { status: 400 }
+      );
+    }
+
+    // Verify refresh token
+    let decoded;
+    try {
+      decoded = jwt.verify(refreshToken, JWT_SECRET);
+    } catch (error) {
+      return NextResponse.json(
+        { error: 'Invalid refresh token' },
+        { status: 401 }
+      );
+    }
+
+    // Get user data
+    const userDoc = await db.collection('pengguna').doc(decoded.userId).get();
+    if (!userDoc.exists) {
+      return NextResponse.json(
+        { error: 'User not found' },
+        { status: 404 }
+      );
+    }
+
+    const userData = userDoc.data();
+    
+    // Generate new access token
+    const accessToken = jwt.sign(
+      { userId: decoded.userId, phone: userData.phone },
+      JWT_SECRET,
+      { expiresIn: '15m' }
+    );
+
+    return NextResponse.json({
+      status: 'success',
+      data: {
+        accessToken
+      }
+    });
+
+  } catch (error) {
+    console.error('Token refresh error:', error);
+    return NextResponse.json(
+      { error: 'Token refresh failed', details: error.message },
       { status: 500 }
     );
   }

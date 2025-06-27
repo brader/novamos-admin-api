@@ -1,5 +1,8 @@
 import { db } from "@/firebase/configure";
 import { NextResponse } from "next/server";
+import jwt from "jsonwebtoken";
+
+const JWT_SECRET = process.env.JWT_SECRET;
 
 export async function GET(request) {
   try {
@@ -60,6 +63,20 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
+    // Optional: Validate authentication (if you want authenticated order creation)
+    // const token = request.headers.get('authorization')?.split(' ')[1];
+    // if (token) {
+    //   try {
+    //     const decoded = jwt.verify(token, JWT_SECRET);
+    //     // You can use decoded.userId to validate the user creating the order
+    //   } catch (error) {
+    //     return NextResponse.json(
+    //       { error: 'Invalid authentication token' },
+    //       { status: 401 }
+    //     );
+    //   }
+    // }
+
     const orderData = await request.json();
 
     // Validate required fields
@@ -102,10 +119,10 @@ export async function POST(request) {
       // Items transformation
       items: orderData.items.map((item) => ({
         id: item.productId || item.id,
-        title: item.name || item.title,
+        name: item.name || item.title, // Keep 'name' field
         price: item.price,
         weight: item.weight || item.berat || 0,
-        qty: item.quantity || item.qty,
+        quantity: item.quantity || item.qty, // Keep 'quantity' field
       })),
 
       // Other fields
@@ -133,12 +150,12 @@ export async function POST(request) {
           date: "",
         },
         {
-          title: "Pesanan Dikirim",
+          title: "Pengiriman",
           status: false,
           date: "",
         },
         {
-          title: "Pesanan Sampai Tujuan",
+          title: "Sampai Tujuan",
           status: false,
           date: "",
         },

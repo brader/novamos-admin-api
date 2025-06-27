@@ -28,7 +28,7 @@ function generateUniqueId(length = 16) {
 }
 
 // JWT secret - should be in environment variables
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-key-for-development-only';
 
 export async function POST(request) {
   try {
@@ -50,12 +50,12 @@ export async function POST(request) {
       const otp = generateOTP();
       const uniq = generateUniqueId();
       
-      // Store OTP in Firestore (you'll need to implement this)
+      // Store OTP in Firestore
       await db.collection('otps').doc(uniq).set({
-        otp,
+        otp: Number(otp), // Store as number
         phone,
         createdAt: new Date().toISOString(),
-        expiresAt: new Date(Date.now() + 15 * 60 * 1000).toISOString() // 15 minutes expiry
+        expiresAt: new Date(Date.now() + 15 * 60 * 1000).toISOString() // Store as ISO string
       });
 
       // Send OTP (implement your SMS service)
@@ -70,26 +70,86 @@ export async function POST(request) {
       // Handle user registration
       const { otp, uniq, name, email, phone } = Object.fromEntries(formData);
       
+      // Validate required fields
+      if (!name || !phone) {
+        return NextResponse.json(
+          { error: 'Name and phone number are required' },
+          { status: 400 }
+        );
+      }
+
       // Verify OTP
       const otpDoc = await db.collection('otps').doc(uniq).get();
-      if (!otpDoc.exists || otpDoc.data().otp !== otp) {
+      if (!otpDoc.exists) {
+        return NextResponse.json(
+          { error: 'Invalid or expired OTP' },
+          { status: 400 }
+        );
+      }
+
+      const otpData = otpDoc.data();
+      const storedOtp = otpData.otp;
+      const expiresAt = otpData.expiresAt;
+
+      // Check if OTP has expired - handle both Date object and ISO string
+      let isExpired = false;
+      if (expiresAt) {
+        const expirationTime = typeof expiresAt === 'string' ? new Date(expiresAt) : 
+                              (expiresAt.toDate ? expiresAt.toDate() : expiresAt);
+        isExpired = new Date() > expirationTime;
+      }
+
+      if (isExpired) {
+        await db.collection('otps').doc(uniq).delete(); // Clean up expired OTP
+        return NextResponse.json(
+          { error: 'OTP has expired. Please request a new one.' },
+          { status: 400 }
+        );
+      }
+
+      console.log('Registration OTP - Stored:', storedOtp, 'Type:', typeof storedOtp);
+      console.log('Registration OTP - Received:', otp, 'Type:', typeof otp);
+
+      // Convert both to strings for comparison
+      if (String(storedOtp) !== String(otp)) {
+        console.log('Registration OTP mismatch:', {
+          stored: storedOtp,
+          received: otp,
+          storedType: typeof storedOtp,
+          receivedType: typeof otp
+        });
         return NextResponse.json(
           { error: 'Invalid OTP' },
           { status: 400 }
         );
       }
 
-      // Check if user already exists
+      // Check if user already exists by phone number
       const userSnapshot = await db.collection('pengguna')
-        .where('email', '==', email)
+        .where('phone', '==', phone)
         .limit(1)
         .get();
 
       if (!userSnapshot.empty) {
         return NextResponse.json(
-          { error: 'User already exists' },
+          { error: 'User with this phone number already exists' },
           { status: 400 }
         );
+      }
+
+      // If email is provided, validate it's not already in use
+      if (email && email.trim()) {
+        const emailSnapshot = await db.collection('pengguna')
+          .where('email', '==', email.trim())
+          .limit(1)
+          .get();
+
+        if (!emailSnapshot.empty) {
+          return NextResponse.json(
+            { error: 'User with this email already exists' },
+            { status: 400 }
+          );
+        }
       }
 
       // Handle profile image upload if exists
@@ -124,7 +184,7 @@ export async function POST(request) {
       // Create user
       const userRef = await db.collection('pengguna').add({
         name,
-        email,
+        email: email && email.trim() ? email.trim() : '', // Optional email
         phone,
         role: 'user',
         profile: profileUrl,
@@ -132,9 +192,9 @@ export async function POST(request) {
         updatedAt: new Date().toISOString(),
       });
 
-      // Generate JWT token
+      // Generate JWT token - use phone instead of email as identifier
       const token = jwt.sign(
-        { userId: userRef.id, email, role: 'user' },
+        { userId: userRef.id, phone, role: 'user' },
         JWT_SECRET,
         { expiresIn: '1d' }
       );

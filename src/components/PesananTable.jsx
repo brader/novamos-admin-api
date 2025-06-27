@@ -183,7 +183,7 @@ const PesananTable = () => {
   const fetchOrders = async () => {
     try {
       setLoading(true); // Ensure loading state is set when starting
-      const response = await axios.get("/api/v1/pesanan");
+      const response = await axios.get("/api/v1/orders");
       setOrders(response.data);
       setFilteredOrders(response.data);
       setError(null); // Clear any previous errors
@@ -351,8 +351,8 @@ const PesananTable = () => {
         const statusOrder = [
           "Pesanan Diterima",
           "Pesanan Dikonfirmasi",
-          "Pesanan Dikirim",
-          "Pesanan Sampai Tujuan",
+          "Pengiriman",
+          "Sampai Tujuan",
         ];
 
         const completedStatuses = order.status?.filter((s) => s.status) || [];
@@ -441,9 +441,9 @@ const PesananTable = () => {
                 <option value="Pesanan Dikonfirmasi">
                   Pesanan Dikonfirmasi
                 </option>
-                <option value="Pesanan Dikirim">Pesanan Dikirim</option>
-                <option value="Pesanan Sampai Tujuan">
-                  Pesanan Sampai Tujuan
+                <option value="Pengiriman">Pengiriman</option>
+                <option value="Sampai Tujuan">
+                  Sampai Tujuan
                 </option>
               </select>
 
@@ -551,8 +551,8 @@ const PesananTable = () => {
                   const statusOrder = [
                     "Pesanan Diterima",
                     "Pesanan Dikonfirmasi",
-                    "Pesanan Dikirim",
-                    "Pesanan Sampai Tujuan",
+                    "Pengiriman",
+                    "Sampai Tujuan",
                   ];
 
                   const completedStatuses =
@@ -616,9 +616,9 @@ const PesananTable = () => {
                       <td className="py-4 px-4">
                         <span
                           className={`px-[1vw] py-[0.5vw] text-xs rounded-full whitespace-nowrap ${
-                            currentStatus === "Pesanan Sampai Tujuan"
+                            currentStatus === "Sampai Tujuan"
                               ? "bg-green-100 text-green-800"
-                              : currentStatus === "Pesanan Dikirim"
+                              : currentStatus === "Pengiriman"
                               ? "bg-blue-100 text-blue-800"
                               : currentStatus === "Pesanan Dikonfirmasi"
                               ? "bg-yellow-100 text-yellow-800"
@@ -856,7 +856,7 @@ const PesananTable = () => {
                               <input
                                 type="number"
                                 min="1"
-                                value={item.price}
+                                value={item.quantity}
                                 onChange={(e) =>
                                   handleQuantityChange(index, e.target.value)
                                 }
@@ -973,9 +973,9 @@ const PesananTable = () => {
                   <option value="Pesanan Dikonfirmasi">
                     Pesanan Dikonfirmasi
                   </option>
-                  <option value="Pesanan Dikirim">Pesanan Dikirim</option>
-                  <option value="Pesanan Sampai Tujuan">
-                    Pesanan Sampai Tujuan
+                  <option value="Pengiriman">Pengiriman</option>
+                  <option value="Sampai Tujuan">
+                    Sampai Tujuan
                   </option>
                 </select>
               </div>

@@ -30,19 +30,23 @@ export async function POST(request) {
 
     const otp = generateOTP();
     const uniq = generateUniqueId();
-    const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes expiry
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + 15 * 60 * 1000); // 15 minutes expiry
 
-    // Save to Firestore
+    console.log(`Generated OTP for ${phone}: ${otp} (${typeof otp})`);
+
+    // Save to Firestore with ISO string for expiration
     await db.collection('otps').doc(uniq).set({
-      otp,
+      otp: Number(otp), // Ensure it's stored as a number
       phone,
-      expiresAt,
-      createdAt: new Date().toISOString()
+      expiresAt: expiresAt.toISOString(), // Store as ISO string for easier comparison
+      createdAt: now.toISOString()
     });
 
     // In production, implement your SMS service (Twilio, etc.)
-    await sendMessage(`62${phone}`, `Kode OTP anda : ${otp}`);
-    console.log(`OTP for ${phone}: ${otp}`); // For development only
+    const message = `Kode OTP anda : ${otp}`;
+    await sendMessage(`62${phone}`, message);
+    console.log(`OTP for ${phone}: ${otp} - Message sent: "${message}"`); // For development only
 
     return NextResponse.json(
       { 

@@ -1,33 +1,41 @@
 import { NextResponse } from "next/server";
 import { db } from "@/firebase/configure";
-import jwt from "jsonwebtoken";
-
-const JWT_SECRET = process.env.JWT_SECRET;
 
 export async function GET(request) {
   try {
-    // 1. Authorization check
+    // Get userId from query parameters as fallback
+    const { searchParams } = new URL(request.url);
+    const userIdParam = searchParams.get('userId');
+    
+    // 1. Try to get userId from Authorization header first
+    let userId = null;
     const authHeader = request.headers.get("authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
+    
+    if (authHeader?.startsWith("Bearer ")) {
+      try {
+        const jwt = require("jsonwebtoken");
+        const JWT_SECRET = process.env.JWT_SECRET;
+        const token = authHeader.split(" ")[1];
+        const decoded = jwt.verify(token, JWT_SECRET);
+        userId = decoded?.userId;
+      } catch (error) {
+        console.log("JWT verification failed, trying query param");
+      }
+    }
+    
+    // If no userId from JWT, try query parameter
+    if (!userId && userIdParam) {
+      userId = userIdParam;
+    }
+    
+    if (!userId) {
       return NextResponse.json(
-        { error: "Missing or invalid authorization header" },
-        { status: 401 }
+        { error: "Missing userId parameter or invalid token" },
+        { status: 400 }
       );
     }
 
-    const token = authHeader.split(" ")[1];
-    const decoded = jwt.verify(token, JWT_SECRET);
-
-    if (!decoded?.userId) {
-      return NextResponse.json(
-        { error: "Invalid token payload" },
-        { status: 401 }
-      );
-    }
-
-    const userId = decoded.userId;
-
-    // 2. Query with error handling for index issues
+    // 2. Query orders by userId
     try {
       const ordersSnapshot = await db
         .collection("pesanan")
