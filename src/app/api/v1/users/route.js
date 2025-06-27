@@ -107,17 +107,8 @@ export async function POST(request) {
         );
       }
 
-      console.log('Registration OTP - Stored:', storedOtp, 'Type:', typeof storedOtp);
-      console.log('Registration OTP - Received:', otp, 'Type:', typeof otp);
-
       // Convert both to strings for comparison
       if (String(storedOtp) !== String(otp)) {
-        console.log('Registration OTP mismatch:', {
-          stored: storedOtp,
-          received: otp,
-          storedType: typeof storedOtp,
-          receivedType: typeof otp
-        });
         return NextResponse.json(
           { error: 'Invalid OTP' },
           { status: 400 }
