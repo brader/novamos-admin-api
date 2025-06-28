@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Transfer Receipt Debug</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .receipt { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 8px; }
+        .receipt img { max-width: 200px; max-height: 200px; border: 1px solid #ccc; }
+        .error { color: red; background: #ffe6e6; padding: 10px; border-radius: 4px; }
+        .success { color: green; background: #e6ffe6; padding: 10px; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <h1>Transfer Receipt Debug Tool</h1>
+    <p>This page helps debug transfer receipt image loading issues.</p>
+    
+    <button onclick="loadReceipts()">Load Recent Transfer Receipts</button>
+    
+    <div id="results"></div>
+
+    <script>
+        async function loadReceipts() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<p>Loading...</p>';
+            
+            try {
+                const response = await fetch('/api/debug/receipts?limit=5');
+                const data = await response.json();
+                
+                if (!data.success) {
+                    throw new Error(data.error);
+                }
+                
+                resultsDiv.innerHTML = `
+                    <div class="success">
+                        Found ${data.count} orders with transfer receipts
+                    </div>
+                `;
+                
+                data.orders.forEach(order => {
+                    const receiptDiv = document.createElement('div');
+                    receiptDiv.className = 'receipt';
+                    receiptDiv.innerHTML = `
+                        <h3>Order ${order.id}</h3>
+                        <p><strong>Payment Method:</strong> ${order.paymentMethod || 'N/A'}</p>
+                        <p><strong>Upload Time:</strong> ${order.updatedAt || order.createdAt || 'N/A'}</p>
+                        <p><strong>Image URL:</strong> <a href="${order.transferReceipt}" target="_blank">${order.transferReceipt}</a></p>
+                        <div>
+                            <strong>Image Preview:</strong><br>
+                            <img src="${order.transferReceipt}" 
+                                 alt="Transfer Receipt" 
+                                 onload="this.nextSibling.innerHTML='✅ Image loaded successfully'"
+                                 onerror="this.nextSibling.innerHTML='❌ Failed to load image'"
+                            />
+                            <div style="margin-top: 5px; font-size: 12px;"></div>
+                        </div>
+                    `;
+                    resultsDiv.appendChild(receiptDiv);
+                });
+                
+            } catch (error) {
+                resultsDiv.innerHTML = `
+                    <div class="error">
+                        Error: ${error.message}
+                    </div>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>

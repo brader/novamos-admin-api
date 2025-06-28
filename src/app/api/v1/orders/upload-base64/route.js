@@ -4,65 +4,23 @@ import { v4 as uuidv4 } from "uuid";
 
 export async function POST(request) {
   try {
-    console.log('Upload request received');
-    console.log('Content-Type:', request.headers.get('content-type'));
-    console.log('Content-Length:', request.headers.get('content-length'));
+    console.log('Base64 upload request received');
     
-    // Log all headers for debugging
-    const headers = {};
-    request.headers.forEach((value, key) => {
-      headers[key] = value;
-    });
-    console.log('All headers:', headers);
-    
-    let formData;
-    try {
-      formData = await request.formData();
-      console.log('FormData parsed successfully');
-    } catch (formDataError) {
-      console.error('FormData parsing error:', formDataError);
-      console.error('Error details:', formDataError.message);
+    const body = await request.json();
+    const { imageBase64, orderId } = body;
+
+    console.log('Upload request received:', { orderId, hasImage: !!imageBase64 });
+
+    if (!imageBase64 || !orderId) {
+      console.error('Missing required fields:', { hasImage: !!imageBase64, orderId });
       return NextResponse.json(
         { 
           success: false,
-          error: `Failed to parse form data: ${formDataError.message}` 
+          error: "Image (base64) and order ID are required" 
         },
         { status: 400 }
       );
     }
-    
-    const image = formData.get("image");
-    const orderId = formData.get("orderId");
-
-    console.log('Upload request received:', { orderId, hasImage: !!image });
-    
-    if (image) {
-      console.log('Image details:', {
-        name: image.name,
-        size: image.size,
-        type: image.type
-      });
-    }
-
-    if (!image || !orderId) {
-      console.error('Missing required fields:', { image: !!image, orderId });
-      return NextResponse.json(
-        { 
-          success: false,
-          error: "Image and order ID are required" 
-        },
-        { status: 400 }
-      );
-    }
-
-    // Convert image to buffer
-    const bytes = await image.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-
-    // Generate unique filename
-    const filename = `transfer-receipts/${orderId}/${uuidv4()}.jpg`;
-
-    console.log('Uploading to Firebase Storage:', filename);
 
     // Check if order exists before uploading
     const orderRef = db.collection("pesanan").doc(orderId);
@@ -79,11 +37,20 @@ export async function POST(request) {
       );
     }
 
+    // Convert base64 to buffer
+    const base64Data = imageBase64.replace(/^data:image\/[a-z]+;base64,/, '');
+    const buffer = Buffer.from(base64Data, 'base64');
+
+    // Generate unique filename
+    const filename = `transfer-receipts/${orderId}/${uuidv4()}.jpg`;
+
+    console.log('Uploading to Firebase Storage:', filename);
+
     // Upload to Firebase Storage
     const file = storage.bucket().file(filename);
     await file.save(buffer, {
       metadata: {
-        contentType: image.type,
+        contentType: 'image/jpeg',
       },
     });
 

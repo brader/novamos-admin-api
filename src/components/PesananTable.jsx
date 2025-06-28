@@ -573,6 +573,9 @@ const PesananTable = () => {
                     Voucher
                   </th>
                   <th className="py-3 px-4 text-left text-black/40 font-semibold">
+                    Bukti Transfer
+                  </th>
+                  <th className="py-3 px-4 text-left text-black/40 font-semibold">
                     Status
                   </th>
                   <th className="py-3 px-4 text-left text-black/40 font-semibold">
@@ -663,6 +666,35 @@ const PesananTable = () => {
                               <span>-Rp {order.voucher.value?.toLocaleString("id-ID") || "0"}</span>
                             )}
                           </span>
+                        ) : (
+                          <span className="text-gray-400 text-xs">-</span>
+                        )}
+                      </td>
+                      <td className="py-4 px-4">
+                        {order.payment?.method === "transfer" ? (
+                          order.transferReceipt ? (
+                            <div className="flex items-center">
+                              <img
+                                src={order.transferReceipt}
+                                alt="Transfer Receipt"
+                                className="w-8 h-8 object-cover rounded border cursor-pointer mr-2"
+                                onClick={() => window.open(order.transferReceipt, '_blank')}
+                                title="Klik untuk melihat ukuran penuh"
+                                onError={(e) => {
+                                  console.error('Failed to load image:', order.transferReceipt);
+                                  e.target.style.display = 'none';
+                                  e.target.nextSibling.textContent = '⚠ Error loading';
+                                }}
+                              />
+                              <span className="text-green-600 text-xs">
+                                ✓ Ada
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="text-red-500 text-xs">
+                              ✗ Belum ada
+                            </span>
+                          )
                         ) : (
                           <span className="text-gray-400 text-xs">-</span>
                         )}
@@ -1068,6 +1100,14 @@ const PesananTable = () => {
                           alt="Bukti Transfer"
                           className="max-w-full h-auto max-h-96 border rounded-lg cursor-pointer"
                           onClick={() => window.open(selectedOrder.transferReceipt, '_blank')}
+                          onError={(e) => {
+                            console.error('Failed to load transfer receipt image:', selectedOrder.transferReceipt);
+                            e.target.style.display = 'none';
+                            const errorDiv = document.createElement('div');
+                            errorDiv.className = 'text-red-500 p-4 border border-red-300 rounded-lg text-center';
+                            errorDiv.innerHTML = '⚠ Error loading image<br><small>URL: ' + selectedOrder.transferReceipt + '</small>';
+                            e.target.parentNode.appendChild(errorDiv);
+                          }}
                         />
                         <div className="text-xs text-gray-500 mt-1">
                           Klik gambar untuk melihat ukuran penuh
