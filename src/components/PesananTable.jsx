@@ -172,10 +172,25 @@ const PesananTable = () => {
       const subtotal =
         prev.items?.reduce((sum, item) => sum + item.price * item.quantity, 0) || 0;
       const shipping = prev.courier?.price || 0;
+      
+      let voucherDiscount = 0;
+      if (prev.voucher) {
+        if (prev.voucher.discountType === "ongkir" || prev.voucher.type === "ongkir") {
+          // Free shipping voucher - discount equals current shipping cost
+          voucherDiscount = shipping;
+          // Update voucher value to match current shipping cost
+          prev.voucher.value = shipping;
+        } else {
+          // Fixed amount voucher
+          voucherDiscount = prev.voucher.value || 0;
+        }
+      }
+      
+      const total = subtotal + shipping - voucherDiscount;
       return {
         ...prev,
         subtotal: subtotal,
-        total: subtotal + shipping,
+        total: total,
       };
     });
   };
@@ -339,8 +354,13 @@ const PesananTable = () => {
       { label: "Kurir", key: "courier.name" },
       { label: "Layanan Kurir", key: "courier.service" },
       { label: "Ongkir", key: "courier.price" },
+      { label: "Voucher Name", key: "voucher.name" },
+      { label: "Voucher Type", key: "voucher.discountType" },
+      { label: "Voucher Discount", key: "voucher.value" },
       { label: "Subtotal", key: "subtotal" },
       { label: "Total", key: "total" },
+      { label: "Payment Method", key: "payment.method" },
+      { label: "Transfer Receipt", key: "transferReceipt" },
       { label: "Status", key: "status" },
       { label: "Nomor AWB", key: "courier.awb" },
     ];
@@ -391,8 +411,20 @@ const PesananTable = () => {
           "courier.name": order.courier?.name || "",
           "courier.service": order.courier?.service || "",
           "courier.price": order.courier?.price || 0,
+          "voucher.name": order.voucher?.name || "",
+          "voucher.discountType": (order.voucher?.discountType === "ongkir" || order.voucher?.type === "ongkir") ? "Gratis Ongkir" : "Diskon Harga",
+          "voucher.value": order.voucher ? (
+            (order.voucher.discountType === "ongkir" || order.voucher.type === "ongkir")
+              ? // For ongkir vouchers, use shipping cost if voucher.value is 0 or null
+                (order.voucher.value === 0 || !order.voucher.value)
+                  ? order.courier?.price || 0
+                  : order.voucher.value || 0
+              : order.voucher.value || 0
+          ) : 0,
           subtotal: order.subtotal || 0,
           total: order.total || 0,
+          "payment.method": order.payment?.method || "",
+          transferReceipt: order.transferReceipt ? "Ada" : "Belum ada",
           status: currentStatus,
           "courier.awb": order.courier?.awb || "",
         };
@@ -538,6 +570,9 @@ const PesananTable = () => {
                     Total
                   </th>
                   <th className="py-3 px-4 text-left text-black/40 font-semibold">
+                    Voucher
+                  </th>
+                  <th className="py-3 px-4 text-left text-black/40 font-semibold">
                     Status
                   </th>
                   <th className="py-3 px-4 text-left text-black/40 font-semibold">
@@ -612,6 +647,25 @@ const PesananTable = () => {
                       </td>
                       <td className="py-4 px-4">
                         Rp {order.total?.toLocaleString("id-ID") || "0"}
+                      </td>
+                      <td className="py-4 px-4">
+                        {order.voucher ? (
+                          <span className="text-green-600 text-xs">
+                            {order.voucher.name}<br />
+                            {order.voucher.discountType === "ongkir" || order.voucher.type === "ongkir" ? (
+                              <span>Gratis Ongkir<br />-Rp {
+                                // For ongkir vouchers, use shipping cost if voucher.value is 0 or null
+                                (order.voucher.value === 0 || !order.voucher.value) 
+                                  ? order.courier?.price?.toLocaleString("id-ID") || "0"
+                                  : order.voucher.value?.toLocaleString("id-ID") || "0"
+                              }</span>
+                            ) : (
+                              <span>-Rp {order.voucher.value?.toLocaleString("id-ID") || "0"}</span>
+                            )}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400 text-xs">-</span>
+                        )}
                       </td>
                       <td className="py-4 px-4">
                         <span
@@ -819,6 +873,40 @@ const PesananTable = () => {
                 </div>
               </div>
 
+              {selectedOrder.voucher && (
+                <div className="mb-6">
+                  <h3 className="font-semibold text-gray-700">
+                    Informasi Voucher
+                  </h3>
+                  <div className="mt-2 space-y-2 bg-green-50 p-4 rounded-lg">
+                    <p>
+                      <span className="text-gray-500">Nama Voucher:</span>{" "}
+                      {selectedOrder.voucher.name}
+                    </p>
+                    <p>
+                      <span className="text-gray-500">Deskripsi:</span>{" "}
+                      {selectedOrder.voucher.description || "-"}
+                    </p>
+                    <p>
+                      <span className="text-gray-500">Tipe Voucher:</span>{" "}
+                      {selectedOrder.voucher.discountType === "ongkir" ? "Gratis Ongkos Kirim" : "Diskon Harga"}
+                    </p>
+                    <p>
+                      <span className="text-gray-500">
+                        {selectedOrder.voucher.discountType === "ongkir" ? "Ongkir Gratis:" : "Diskon:"}
+                      </span>{" "}
+                      <span className="text-green-600 font-semibold">
+                        Rp {selectedOrder.voucher.value?.toLocaleString("id-ID") || "0"}
+                      </span>
+                    </p>
+                    <p>
+                      <span className="text-gray-500">Minimal Pembelian:</span>{" "}
+                      Rp {selectedOrder.voucher.min?.toLocaleString("id-ID") || "0"}
+                    </p>
+                  </div>
+                </div>
+              )}
+
               <div className="mb-6">
                 <div className="flex justify-between items-center mb-2">
                   <h3 className="font-semibold text-gray-700">Daftar Produk</h3>
@@ -910,7 +998,27 @@ const PesananTable = () => {
                         "0"}
                     </span>
                   </div>
-                  <div className="flex justify-between font-semibold text-lg">
+                  {selectedOrder.voucher && (
+                    <div className="flex justify-between mb-2 text-green-600">
+                      <span>
+                        {selectedOrder.voucher.discountType === "ongkir" || selectedOrder.voucher.type === "ongkir"
+                          ? `Gratis Ongkir (${selectedOrder.voucher.name}):`
+                          : `Diskon Voucher (${selectedOrder.voucher.name}):`
+                        }
+                      </span>
+                      <span>
+                        -Rp{" "}
+                        {selectedOrder.voucher.discountType === "ongkir" || selectedOrder.voucher.type === "ongkir"
+                          ? // For ongkir vouchers, use shipping cost if voucher.value is 0 or null
+                            (selectedOrder.voucher.value === 0 || !selectedOrder.voucher.value)
+                              ? selectedOrder.courier?.price?.toLocaleString("id-ID") || "0"
+                              : selectedOrder.voucher.value?.toLocaleString("id-ID") || "0"
+                          : selectedOrder.voucher.value?.toLocaleString("id-ID") || "0"
+                        }
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex justify-between font-semibold text-lg border-t pt-2">
                     <span>Total:</span>
                     <span>
                       Rp {selectedOrder.total?.toLocaleString("id-ID") || "0"}
@@ -945,6 +1053,38 @@ const PesananTable = () => {
                   ))}
                 </div>
               </div>
+
+              {/* Transfer Receipt Section */}
+              {selectedOrder.payment?.method === "transfer" && (
+                <div className="mb-6">
+                  <h3 className="font-semibold text-gray-700 mb-2">
+                    Bukti Transfer
+                  </h3>
+                  {selectedOrder.transferReceipt ? (
+                    <div className="space-y-2">
+                      <div className="relative">
+                        <img
+                          src={selectedOrder.transferReceipt}
+                          alt="Bukti Transfer"
+                          className="max-w-full h-auto max-h-96 border rounded-lg cursor-pointer"
+                          onClick={() => window.open(selectedOrder.transferReceipt, '_blank')}
+                        />
+                        <div className="text-xs text-gray-500 mt-1">
+                          Klik gambar untuk melihat ukuran penuh
+                        </div>
+                      </div>
+                      <div className="text-sm text-green-600 flex items-center">
+                        <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
+                        Bukti transfer telah diupload
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-sm text-gray-500 p-4 border border-dashed border-gray-300 rounded-lg text-center">
+                      Belum ada bukti transfer yang diupload
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div className="mb-6">
                 <h3 className="font-semibold text-gray-700 mb-2">

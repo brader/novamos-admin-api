@@ -14,12 +14,13 @@ export async function GET(request) {
     if (authHeader?.startsWith("Bearer ")) {
       try {
         const jwt = require("jsonwebtoken");
-        const JWT_SECRET = process.env.JWT_SECRET;
+        const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-key-for-development-only';
         const token = authHeader.split(" ")[1];
         const decoded = jwt.verify(token, JWT_SECRET);
         userId = decoded?.userId;
+        console.log("JWT decoded userId:", userId);
       } catch (error) {
-        console.log("JWT verification failed, trying query param");
+        console.log("JWT verification failed:", error.message);
       }
     }
     
