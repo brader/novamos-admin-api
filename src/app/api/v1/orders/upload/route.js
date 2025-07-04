@@ -5,23 +5,30 @@ import { v4 as uuidv4 } from "uuid";
 export async function POST(request) {
   try {
     console.log('Upload request received');
-    console.log('Content-Type:', request.headers.get('content-type'));
-    console.log('Content-Length:', request.headers.get('content-length'));
     
-    // Log all headers for debugging
-    const headers = {};
-    request.headers.forEach((value, key) => {
-      headers[key] = value;
-    });
-    console.log('All headers:', headers);
+    // Get content type header
+    const contentType = request.headers.get('content-type') || '';
+    console.log('Content-Type:', contentType);
+    
+    // For React Native, don't enforce strict content-type check
+    // React Native might send different content-type headers
+    if (contentType && !contentType.includes('multipart/form-data') && !contentType.includes('application/x-www-form-urlencoded')) {
+      console.log('Content type check - allowing for React Native compatibility');
+    }
     
     let formData;
     try {
+      // Try to parse FormData
       formData = await request.formData();
       console.log('FormData parsed successfully');
     } catch (formDataError) {
       console.error('FormData parsing error:', formDataError);
-      console.error('Error details:', formDataError.message);
+      
+      // More detailed error logging
+      console.error('Error name:', formDataError.name);
+      console.error('Error message:', formDataError.message);
+      console.error('Error stack:', formDataError.stack);
+      
       return NextResponse.json(
         { 
           success: false,

@@ -5,11 +5,25 @@ import { v4 as uuidv4 } from "uuid";
 export async function POST(request) {
   try {
     console.log('Base64 upload request received');
+    console.log('Request headers:', Object.fromEntries(request.headers.entries()));
     
-    const body = await request.json();
+    let body;
+    try {
+      body = await request.json();
+    } catch (jsonError) {
+      console.error('Failed to parse request JSON:', jsonError);
+      return NextResponse.json(
+        { 
+          success: false,
+          error: "Invalid JSON in request body" 
+        },
+        { status: 400 }
+      );
+    }
+    
     const { imageBase64, orderId } = body;
 
-    console.log('Upload request received:', { orderId, hasImage: !!imageBase64 });
+    console.log('Upload request received:', { orderId, hasImage: !!imageBase64, imageLength: imageBase64?.length });
 
     if (!imageBase64 || !orderId) {
       console.error('Missing required fields:', { hasImage: !!imageBase64, orderId });
@@ -80,12 +94,39 @@ export async function POST(request) {
     );
   } catch (error) {
     console.error("Error uploading transfer receipt:", error);
-    return NextResponse.json(
-      { 
-        success: false,
-        error: error.message || "Failed to upload transfer receipt" 
-      },
-      { status: 500 }
-    );
+    console.error("Error stack:", error.stack);
+    
+    // Ensure we always return valid JSON
+    try {
+      return NextResponse.json(
+        { 
+          success: false,
+          error: error.message || "Failed to upload transfer receipt",
+          details: error.toString()
+        },
+        { 
+          status: 500,
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        }
+      );
+    } catch (responseError) {
+      console.error("Failed to create error response:", responseError);
+      // Fallback response
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: "Internal server error",
+          details: "Failed to create proper error response"
+        }),
+        {
+          status: 500,
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        }
+      );
+    }
   }
 }

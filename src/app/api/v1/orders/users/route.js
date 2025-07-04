@@ -11,17 +11,28 @@ export async function GET(request) {
     let userId = null;
     const authHeader = request.headers.get("authorization");
     
+    console.log("Auth header:", authHeader);
+    
     if (authHeader?.startsWith("Bearer ")) {
       try {
         const jwt = require("jsonwebtoken");
         const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-key-for-development-only';
         const token = authHeader.split(" ")[1];
+        
+        console.log("Token to verify:", token?.substring(0, 50) + "...");
+        console.log("JWT_SECRET length:", JWT_SECRET.length);
+        
         const decoded = jwt.verify(token, JWT_SECRET);
+        console.log("Decoded JWT payload:", JSON.stringify(decoded, null, 2));
         userId = decoded?.userId;
-        console.log("JWT decoded userId:", userId);
+        
+        console.log("JWT decoded successfully:", { userId, phone: decoded?.phone });
       } catch (error) {
         console.log("JWT verification failed:", error.message);
+        console.log("JWT error name:", error.name);
       }
+    } else {
+      console.log("No Bearer token found in auth header");
     }
     
     // If no userId from JWT, try query parameter
@@ -38,12 +49,28 @@ export async function GET(request) {
 
     // 2. Query orders by userId
     try {
-      const ordersSnapshot = await db
+      console.log("Querying orders for userId:", userId);
+      
+      // Try both userId field and user.id field to handle different data structures
+      const ordersSnapshot1 = await db
         .collection("pesanan")
         .where("userId", "==", userId)
         .get();
+        
+      const ordersSnapshot2 = await db
+        .collection("pesanan")
+        .where("user.id", "==", userId)
+        .get();
+        
+      // Combine results and remove duplicates
+      const allDocs = [...ordersSnapshot1.docs, ...ordersSnapshot2.docs];
+      const uniqueDocs = allDocs.filter((doc, index, self) => 
+        index === self.findIndex(d => d.id === doc.id)
+      );
+      
+      console.log("Found orders:", uniqueDocs.length);
 
-      const orders = ordersSnapshot.docs
+      const orders = uniqueDocs
         .map((doc) => {
           const data = doc.data();
 
